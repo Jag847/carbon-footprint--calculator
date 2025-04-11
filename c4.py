@@ -455,7 +455,8 @@ if current_slide["title"] == "Summary":
     values="Emissions (kg CO₂)",
     names="Category",
     title="Emission Contribution by Category",
-    color_discrete_sequence=px.colors.qualitative.Set3
+    color_discrete_sequence=px.colors.qualitative.Set3,
+    hole=0.4
 )
     fig.update_traces(
     textinfo='percent+label',
