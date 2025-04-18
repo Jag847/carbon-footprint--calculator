@@ -14,6 +14,14 @@ emission_factors= {
         "PNG": 2.30,
         "LPG": 2.98
     },
+    "Fossil Fuels per litre": {
+        "Petrol/Gasoline": 2.315,
+        "Diesel": 2.68,
+        "LPG": 1.51
+    },
+    "Fossil Fuels per scm": {
+        "PNG": 2.1
+    },
     "Electricity": {
         "Coal/Thermal": 0.85,  # kg CO₂ per kWh
         "Solar": 0.00  # No emissions
@@ -29,8 +37,8 @@ emission_factors= {
 f_e_f = {
     "Domestic Refrigeration": 1430,  # Example: R-134a
     "Commercial Refrigeration": 3922,  # Example: R-404A
-    "Industrial Refrigeration": 1774,  # Example: R-410A
-    "Residential and Commercial A/C": 2088  # Example: R-407C
+    "Industrial Refrigeration": 2088,  # Example: R-410A
+    "Residential and Commercial A/C": 1650  # Example: R-407C
 }
 
 # Emission factors for different electricity sources (kg CO₂ per kWh)
@@ -117,23 +125,30 @@ if current_slide["title"] == "Fossil Fuels":
         fuel_type1 = st.selectbox("", ["Choose Fuel Type", "CNG", "Petrol/Gasoline", "Diesel", "PNG", "LPG"])
 
         st.subheader("Unit")
-        unit1 = st.selectbox("", ["Choose Unit", "Kg", "Tonne"])
+        unit1 = st.selectbox("", ["Choose Unit", "Kg", "Tonne","litre"])
 
         st.subheader("Amount Consumed")
         amount_consumed1 = st.number_input("Enter Amount", min_value=1, max_value=10000)
 
-    if fuel_type1 != "Choose Fuel Type":
-        factor = emission_factors["Fossil Fuels"][fuel_type1]
+    if fuel_type1 != "Choose Fuel Type" and unit1 != "Choose Unit":
+        factor = None
         if unit1 == "Tonne":
             amount_consumed1 *= 1000  # Convert to kg
+            factor = emission_factors["Fossil Fuels"].get(fuel_type1)
+        elif unit1 == "litre":
+            factor = emission_factors["Fossil Fuels per litre"].get(fuel_type1)
+        elif unit1 == "SCM":
+            factor = emission_factors["Fossil Fuels per scm"].get(fuel_type1)
+        elif unit1 == "kg":
+            factor = emission_factors["Fossil Fuels"].get(fuel_type1)
+        if factor is not None:
+            carbon_footprint =amount_consumed1 * factor
 
-        carbon_footprint = amount_consumed1 * factor
-
-        st.subheader("Estimated Carbon Emission")
-        st.write(f"Your estimated CO₂ emission: **{carbon_footprint:.2f} kg CO₂**")
+            st.subheader("Estimated Carbon Emission")
+            st.write(f"Your estimated CO₂ emission: **{carbon_footprint:.2f} kg CO₂**")
 
         # Store in session state
-        st.session_state["Fossil Fuels Emission"] = carbon_footprint
+            st.session_state["Fossil Fuels Emission"] = carbon_footprint
 
 
 if current_slide["title"] == "Fugitive":
@@ -310,21 +325,95 @@ if current_slide["title"] == "Travel":
                                   "July", "August", "September", "October", "November", "December"])
 
     with col2:
+        if "travel_emissions" not in st.session_state:                                  
+            st.session_state.travel_emissions = 0.0  
         st.subheader(" Mode of Transport")
         travel_mode = st.selectbox("", ["Choose Mode of Transport", "Airways", "Roadways", "Railways"])
+        if travel_mode == "Airways":
+            flight_length = st.selectbox("Flight Length", ["Short Haul", "Long Haul", "Domestic", "International"])
+            flight_emissions = {
+            "Short Haul": 0.15,
+            "Long Haul": 0.11,
+            "Domestic": 0.18,
+            "International": 0.13
+            }
+            distance = st.number_input("Enter distance traveled (km)", min_value=0.0, step=1.0)    
+            if distance > 0:
+                emission = distance * flight_emissions[flight_length]
+                st.session_state["Travel Emission"] = emission
+                st.session_state.travel_emissions += emission
+                st.write(f"Estimated Emissions: {emission:.2f} kg CO₂e")
+         elif travel_mode == "Railways":
+             rail_type = st.selectbox("Rail Type", ["Metro", "National Railways"])
+             if rail_type == "Metro":
+                 emission_factor = 0.04
+                 distance = st.number_input("Enter distance traveled (km)", min_value=0.0, step=1.0)
+                 if distance > 0:
+                     emission = distance * emission_factor
+                     st.session_state["Travel Emission"] = emission
+                     st.session_state.travel_emissions += emission
+                     st.write(f"Estimated Emissions: {emission:.2f} kg CO₂e")
+             elif rail_type == "National Railways":
+                 train_type = st.selectbox("Train Type", ["Electric", "Diesel", "Hydrogen"])
+                 train_emission_factors = {
+                    "Electric": 0.035,
+                    "Diesel": 0.06,
+                    "Hydrogen": 0.04
+             }
+             distance = st.number_input("Enter distance traveled (km)", min_value=0.0, step=1.0)
+             if distance > 0:
+                 emission = distance * train_emission_factors[train_type]                  
+                 st.session_state["Travel Emission"] = emission
+                 st.session_state.travel_emissions += emission                               
+                 st.write(f"Estimated Emissions: {emission:.2f} kg CO₂e")
+         elif travel_mode == "Roadways":
+              ownership = st.selectbox("Vehicle Ownership", ["Public", "Personal"])
 
-        st.subheader("Distance Travelled(KM)")
-        travel_distance = st.number_input("Enter Approximate Distance", min_value=1, max_value=10000)
+              if ownership == "Personal":
+                  vehicle_type = st.selectbox("Vehicle Type", ["Small Sized Car", "Medium Sized Car", "Large Sized Car", "Motorcycle"])
+                  personal_emission_factors = {
+                     "Small Sized Car": 0.12,
+                     "Medium Sized Car": 0.17,
+                     "Large Sized Car": 0.22,
+                     "Motorcycle": 0.09
+                  }
+                  distance = st.number_input("Enter distance traveled (km)", min_value=0.0, step=1.0)
+                  if distance > 0:
+                      emission = distance * personal_emission_factors[vehicle_type]
+                      st.session_state["Travel Emission"] = emission                              
+                      st.session_state.travel_emissions += emission
+                      st.write(f"Estimated Emissions: {emission:.2f} kg CO₂e")
+              elif ownership == "Public":
+                  vehicle_type = st.selectbox("Vehicle Type", ["Bus", "Taxi"])
 
-    if travel_mode != "Choose Mode of Transport":
-        travel_factor = emission_factors["Travel"][travel_mode]
-        travel_emission = travel_distance * travel_factor
-
-        st.subheader("Estimated Carbon Emission")
-        st.write(f"Your estimated CO₂ emission: **{travel_emission:.2f} kg CO₂**")
-
-        # Store in session state
-        st.session_state["Travel Emission"] = travel_emission
+                  if vehicle_type == "Bus":                                                        
+                       bus_fuel = st.selectbox("Bus Runs On", ["Electricity", "Diesel", "Hydrogen"])                                                                           bus_emission_factors = {
+                          "Electricity": 0.03,
+                          "Diesel": 0.09,
+                          "Hydrogen": 0.05
+                       }
+                       distance = st.number_input("Enter distance traveled (km)", min_value=0.0, step=1.0)
+                       if distance > 0:
+                           emission = distance * bus_emission_factors[bus_fuel]
+                           st.session_state["Travel Emission"] = emission                              st.session_state.travel_emissions += emission
+                           st.write(f"Estimated Emissions: {emission:.2f} kg CO₂e")
+                  elif vehicle_type == "Taxi":
+                       taxi_fuel = st.selectbox("Taxi Runs On", ["Electricity", "Petrol", "Hydrogen", "CNG"])
+                       taxi_emission_factors = {
+                          "Electricity": 0.06,
+                          "Petrol": 0.16,
+                          "Hydrogen": 0.07,
+                          "CNG": 0.13
+                       }
+                       distance = st.number_input("Enter distance traveled (km)", min_value=0.0, step=1.0)
+                       if distance > 0:
+                           emission = distance * taxi_emission_factors[taxi_fuel]
+                           st.session_state["Travel Emission"] = emission
+                           st.session_state.travel_emissions += emission
+                           st.write(f"Estimated Emissions: {emission:.2f} kg CO₂e")
+                           
+         st.subheader("Total Travel Emission")
+         st.write(f"Your estimated CO₂ emission: **{st.session_state.travel_emissions:.2f} kg CO₂**")
 
 if current_slide["title"] == "Offset":
     st.header("Carbon Footprint Calculator")
